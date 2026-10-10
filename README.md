@@ -169,11 +169,19 @@ Run the feature tests:
 
 ## 6. Postman testing
 
-Import the Postman collection provided with the project, if included in the repository.
+Import the Postman collection provided with the project.
+The Postman collection includes requests for the main API endpoints, covering check-in, check-out, occupant listing, and tenant validation.
+
+**Collection file:** [`Nursery Check-in API - Local.postman_collection.json`](postman/Nursery%20Check-in%20API%20-%20Local.postman_collection.json)
+
 
 Configure the base URL and tenant, room, and child IDs to match your local database. Include `X-Tenant-ID` in every request.
 
 Test both successful requests and failure scenarios, especially attempts to access resources belonging to another tenant.
+
+## Postman Collection
+
+
 
 ## 7. Design decisions
 

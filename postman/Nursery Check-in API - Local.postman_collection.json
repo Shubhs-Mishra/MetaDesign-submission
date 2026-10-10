@@ -1,0 +1,882 @@
+{
+  "info": {
+    "_postman_id": "19ef4649-54a2-475d-b1a4-053d9f28ee61",
+    "name": "Nursery Check-in API - Local",
+    "description": "Tests for the Laravel nursery check-in API. Start Laravel Sail first. This collection assumes API routes are under /api and the database has seeded tenants, rooms, and children. Set IDs in collection variables before running. Tests assert status codes and response shape; tenant isolation tests assume tenant 1 owns room/child/check-in IDs for tenant A and tenant 2 owns IDs for tenant B. Some negative tests may reveal implementation gaps rather than pass with the current code.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "58307082",
+    "_collection_link": "https://go.postman.co/collection/58307082-19ef4649-54a2-475d-b1a4-053d9f28ee61?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "01 - Check-in",
+      "item": [
+        {
+          "name": "Check in child A to room A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Response contains check-in data\", () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property(\"data\");",
+                  "  pm.expect(json.data).to.have.property(\"id\");",
+                  "  pm.expect(json.data).to.have.property(\"checked_in_at\");",
+                  "  pm.expect(json.data.checked_out_at).to.be.oneOf([null, undefined]);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) pm.collectionVariables.set(\"createdCheckInId\", String(json.data.id));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenantA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"child_id\": \"{{childA}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomA}}/check-ins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rooms",
+                "{{roomA}}",
+                "check-ins"
+              ]
+            },
+            "description": "Happy path. Run once per fresh child; repeating should be rejected while the child remains checked in."
+          },
+          "response": []
+        },
+        {
+          "name": "Reject duplicate active check-in",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Duplicate active check-in is rejected\", () => pm.expect(pm.response.code).to.be.oneOf([422, 409]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenantA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"child_id\": \"{{childA}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomA}}/check-ins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rooms",
+                "{{roomA}}",
+                "check-ins"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject missing child_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Missing child_id is rejected\", () => pm.expect(pm.response.code).to.be.oneOf([422, 400]));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenantA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"child_id\" : 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomA}}/check-ins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rooms",
+                "{{roomA}}",
+                "check-ins"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject non-existent child",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Unknown child is rejected\", () => pm.expect(pm.response.code).to.be.oneOf([422, 404]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenantA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"child_id\": 999999\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomA}}/check-ins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rooms",
+                "{{roomA}}",
+                "check-ins"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject child from tenant B",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cross-tenant child is rejected\", () => pm.expect(pm.response.code).to.be.oneOf([422, 404]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenantA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"child_id\": \"{{childB}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomA}}/check-ins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rooms",
+                "{{roomA}}",
+                "check-ins"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject unknown room",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Unknown room is rejected\", () => pm.expect(pm.response.code).to.be.oneOf([404, 422]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenantA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"child_id\": \"{{childA}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/999999/check-ins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rooms",
+                "999999",
+                "check-ins"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Check-out",
+      "item": [
+        {
+          "name": "Check out a check-in (use createdCheckInId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Checkout returns success\", () => pm.expect(pm.response.code).to.be.oneOf([200, 204]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenantA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/check-ins/{{createdCheckInId}}/check-out",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "check-ins",
+                "{{createdCheckInId}}",
+                "check-out"
+              ]
+            },
+            "description": "Run after successful check-in. The collection variable is populated by the first request."
+          },
+          "response": []
+        },
+        {
+          "name": "Reject checkout from tenant A for tenant B check-in",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cross-tenant checkout is rejected\", () => pm.expect(pm.response.code).to.be.oneOf([404, 403]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenantA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/check-ins/{{checkInB}}/check-out",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "check-ins",
+                "{{checkInB}}",
+                "check-out"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject unknown check-in ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Unknown check-in is rejected\", () => pm.expect(pm.response.code).to.be.oneOf([404, 422]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenantA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/check-ins/999999/check-out",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "check-ins",
+                "999999",
+                "check-out"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject checkout without tenant header",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Missing tenant header is rejected\", () => pm.expect(pm.response.code).to.be.oneOf([400, 401, 422]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/check-ins/{{checkInA}}/check-out",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "check-ins",
+                "{{checkInA}}",
+                "check-out"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject checking out the same check-in twice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Second checkout is rejected\", () => pm.expect(pm.response.code).to.be.oneOf([422, 409]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenantA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/check-ins/{{createdCheckInId}}/check-out",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "check-ins",
+                "{{createdCheckInId}}",
+                "check-out"
+              ]
+            },
+            "description": "Run after the successful checkout request."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Occupants",
+      "item": [
+        {
+          "name": "List occupants in room A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Occupants returns success\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response has data array\", () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data).to.be.an(\"array\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenantB}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomB}}/occupants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rooms",
+                "{{roomB}}",
+                "occupants"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Room B cannot be accessed as tenant A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cross-tenant room access is rejected\", () => pm.expect(pm.response.code).to.be.oneOf([404, 403]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenantA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomB}}/occupants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rooms",
+                "{{roomB}}",
+                "occupants"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject occupants request without tenant header",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Missing tenant header is rejected\", () => pm.expect(pm.response.code).to.be.oneOf([400, 401, 422]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomA}}/occupants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rooms",
+                "{{roomA}}",
+                "occupants"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject unknown room",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Unknown room is rejected\", () => pm.expect(pm.response.code).to.be.oneOf([404, 422]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenantA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/999999/occupants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rooms",
+                "999999",
+                "occupants"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Tenant validation",
+      "item": [
+        {
+          "name": "Reject missing tenant header",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Missing tenant header is rejected\", () => pm.expect(pm.response.code).to.be.oneOf([400, 401, 422]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomA}}/occupants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rooms",
+                "{{roomA}}",
+                "occupants"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject malformed tenant header",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Malformed tenant header is rejected\", () => pm.expect(pm.response.code).to.be.oneOf([400, 404, 422]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "abc"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomA}}/occupants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "rooms",
+                "{{roomA}}",
+                "occupants"
+              ]
+            },
+            "description": "This request sends X-Tenant-ID: abc and should be rejected by ResolveTenant."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost"
+    },
+    {
+      "key": "tenantA",
+      "value": "1"
+    },
+    {
+      "key": "tenantB",
+      "value": "2"
+    },
+    {
+      "key": "roomA",
+      "value": "1"
+    },
+    {
+      "key": "roomB",
+      "value": "2"
+    },
+    {
+      "key": "childA",
+      "value": "1"
+    },
+    {
+      "key": "childB",
+      "value": "2"
+    },
+    {
+      "key": "checkInA",
+      "value": "1"
+    },
+    {
+      "key": "checkInB",
+      "value": "2"
+    },
+    {
+      "key": "createdCheckInId",
+      "value": ""
+    },
+    {
+      "key": "roomC",
+      "value": "",
+      "type": "default"
+    }
+  ]
+}
